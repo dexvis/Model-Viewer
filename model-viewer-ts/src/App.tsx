@@ -5,7 +5,22 @@ import * as THREE from 'three'
 import './App.css'
 
 function App() {
-  const { scene } = useGLTF('/2.gltf')
+
+  const urlParams = new URLSearchParams(window.location.search)
+  let modelName = urlParams.get('model')
+  
+  useEffect(() => {
+    if (!modelName) {
+      const defaultModel = '1.gltf'
+      const newUrl = `${window.location.pathname}?model=${defaultModel}`
+      window.history.replaceState({}, '', newUrl)  
+    }
+  }, [])
+  
+  const finalModelName = urlParams.get('model') || '1.gltf'
+  const modelPath = `/${finalModelName}`
+  
+  const { scene } = useGLTF(modelPath)
   const modelRef = useRef<THREE.Group>(null)
   
   useEffect(() => {
