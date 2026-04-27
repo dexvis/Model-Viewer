@@ -58,7 +58,7 @@ function isMesh(obj: any): boolean {
   return obj && (obj.isMesh === true || obj.type === 'Mesh');
 }
 
-/** Плоская структура + оригинальные материалы */
+/** Плоская структура: все меши в корень, материалы оригинальные */
 function prepareForExport(group: THREE.Group): THREE.Group {
   const clone = group.clone(true) as THREE.Group;
   clone.updateWorldMatrix(true, true);
@@ -77,13 +77,16 @@ function prepareForExport(group: THREE.Group): THREE.Group {
   exportGroup.name = 'Scene';
 
   allMeshes.forEach((mesh, index) => {
-    // Новый меш с оригинальной геометрией и материалом
-    const newMesh = new THREE.Mesh(mesh.geometry, mesh.material);
+    // Клонируем геометрию
+    const newGeo = mesh.geometry.clone();
     
-    // Применяем мировую матрицу
-    newMesh.applyMatrix4(mesh.matrixWorld);
+    // Создаём новый меш с оригинальным материалом
+    const newMesh = new THREE.Mesh(newGeo, mesh.material);
     
-    // Сбрасываем трансформации
+    // Применяем мировую матрицу к геометрии
+    newMesh.geometry.applyMatrix4(mesh.matrixWorld);
+    
+    // Сбрасываем трансформации меша
     newMesh.position.set(0, 0, 0);
     newMesh.quaternion.identity();
     newMesh.scale.set(1, 1, 1);
@@ -141,6 +144,7 @@ async function loadRootGeometry(
   return group;
 }
 
+// ---------- Экран загрузки ----------
 const LoadingScreen = ({ progressRef }: { progressRef: React.MutableRefObject<string> }) => {
   const divRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -149,6 +153,7 @@ const LoadingScreen = ({ progressRef }: { progressRef: React.MutableRefObject<st
     }, 50);
     return () => clearInterval(interval);
   }, [progressRef]);
+
   return (
     <div style={{ color: 'white', background: '#111', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
       <div>🔄 Loading...</div>
@@ -157,6 +162,7 @@ const LoadingScreen = ({ progressRef }: { progressRef: React.MutableRefObject<st
   );
 };
 
+// ---------- Компонент для glTF ----------
 function GltfModel({ url, onReady }: { url: string; onReady: (scene: THREE.Group) => void }) {
   const { scene } = useGLTF(url);
   useEffect(() => {
@@ -165,6 +171,7 @@ function GltfModel({ url, onReady }: { url: string; onReady: (scene: THREE.Group
   return <primitive object={scene} />;
 }
 
+// ---------- Основной компонент ----------
 function App() {
   const fileParam = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
@@ -250,13 +257,34 @@ function App() {
   }, [fileType]);
 
   if (loading) return <LoadingScreen progressRef={progressRef} />;
-  if (error) return <div style={{ color: '#ff6b6b', background: '#111', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>❌ {error}</div>;
+  if (error)
+    return (
+      <div style={{ color: '#ff6b6b', background: '#111', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        ❌ {error}
+      </div>
+    );
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#111', position: 'relative' }}>
-      <button onClick={handleExport} style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 10, padding: '10px 20px', background: '#4caf50', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 'bold' }}>
+      <button
+        onClick={handleExport}
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          right: 20,
+          zIndex: 10,
+          padding: '10px 20px',
+          background: '#4caf50',
+          color: 'white',
+          border: 'none',
+          borderRadius: 5,
+          cursor: 'pointer',
+          fontWeight: 'bold',
+        }}
+      >
         Export to GLTF
       </button>
+
       <Canvas camera={{ far: 50000 }} style={{ background: '#111' }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[1000, 1000, 1000]} intensity={1} />
